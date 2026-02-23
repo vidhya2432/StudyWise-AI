@@ -5,10 +5,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, BarChart, XAxis, YAxis } from "recharts"
-import { Flame, Clock, Trophy, Target, BrainCircuit, Sparkles, RefreshCw } from "lucide-react"
+import { Flame, Clock, Trophy, Target, BrainCircuit, Sparkles, RefreshCw, Play, Pause, RotateCcw } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { generateMotivation, type GenerateMotivationOutput } from "@/ai/flows/generate-motivation"
 
 const studyData = [
@@ -31,17 +31,54 @@ const chartConfig = {
 export default function Dashboard() {
   const [motivation, setMotivation] = useState<GenerateMotivationOutput | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [stats, setStats] = useState({ workspaces: 0, notes: 0 })
+  const [stats, setStats] = useState({ workspaces: 0, notes: 0, xp: 0 })
+  
+  // Pomodoro Timer State
+  const [timeLeft, setTimeLeft] = useState(25 * 60)
+  const [isActive, setIsActive] = useState(false)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    const saved = localStorage.getItem("studywise-workspaces")
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      const noteCount = parsed.reduce((acc: number, ws: any) => acc + ws.notes.length, 0)
-      setStats({ workspaces: parsed.length, notes: noteCount })
+    const savedWs = localStorage.getItem("studywise-workspaces")
+    const savedXP = localStorage.getItem("studywise-xp")
+    
+    let workspacesCount = 0
+    let noteCount = 0
+    
+    if (savedWs) {
+      const parsed = JSON.parse(savedWs)
+      workspacesCount = parsed.length
+      noteCount = parsed.reduce((acc: number, ws: any) => acc + ws.notes.length, 0)
     }
+    
+    setStats({ 
+      workspaces: workspacesCount, 
+      notes: noteCount,
+      xp: savedXP ? parseInt(savedXP) : 0
+    })
+    
     handleRefreshMotivation()
   }, [])
+
+  useEffect(() => {
+    if (isActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => prev - 1)
+      }, 1000)
+    } else if (timeLeft === 0) {
+      setIsActive(false)
+      if (timerRef.current) clearInterval(timerRef.current)
+      // Award XP for completing a session
+      const newXP = stats.xp + 100
+      localStorage.setItem("studywise-xp", newXP.toString())
+      setStats(prev => ({ ...prev, xp: newXP }))
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [isActive, timeLeft, stats.xp])
 
   const handleRefreshMotivation = async () => {
     setIsLoading(true)
@@ -55,6 +92,18 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const toggleTimer = () => setIsActive(!isActive)
+  const resetTimer = () => {
+    setIsActive(false)
+    setTimeLeft(25 * 60)
   }
 
   return (
@@ -108,7 +157,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-accent text-accent-foreground">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Target className="size-4" />
@@ -116,64 +165,91 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">4,250</div>
-                <p className="text-xs text-muted-foreground">Top 5% of students</p>
+                <div className="text-3xl font-bold">{stats.xp.toLocaleString()}</div>
+                <p className="text-xs opacity-80">Rank: Gold Scholar</p>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 shadow-sm">
-              <CardHeader>
-                <CardTitle>Study Hours Graph</CardTitle>
-                <CardDescription>Your focus time over the last 7 days.</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ChartContainer config={chartConfig}>
-                  <BarChart data={studyData}>
-                    <XAxis dataKey="day" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="hours" fill="var(--color-hours)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle>Study Hours Graph</CardTitle>
+                  <CardDescription>Your focus time over the last 7 days.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  <ChartContainer config={chartConfig}>
+                    <BarChart data={studyData}>
+                      <XAxis dataKey="day" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="hours" fill="var(--color-hours)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card className="bg-accent/5 border-accent/20 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" onClick={handleRefreshMotivation} disabled={isLoading}>
-                  <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-              <CardHeader>
-                <CardTitle className="text-accent flex items-center gap-2">
-                  <BrainCircuit className="size-5" />
-                  AI Study Coach
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {motivation ? (
-                  <div className="space-y-4 animate-in fade-in duration-500">
-                    <p className="text-lg italic font-medium leading-tight">"{motivation.motivation}"</p>
-                    <Separator className="bg-accent/20" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold uppercase text-accent tracking-wider flex items-center gap-1">
-                        <Sparkles className="size-3" /> Daily Tip
-                      </p>
-                      <p className="text-sm text-muted-foreground">{motivation.dailyTip}</p>
+            <div className="space-y-6">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Clock className="size-5 text-primary" />
+                    Pomodoro Focus
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center gap-6 py-6">
+                  <div className="text-5xl font-mono font-bold tracking-tighter text-primary">
+                    {formatTime(timeLeft)}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="icon" variant={isActive ? "outline" : "default"} onClick={toggleTimer} className="size-12 rounded-full shadow-md">
+                      {isActive ? <Pause className="size-5" /> : <Play className="size-5" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={resetTimer} className="size-12 rounded-full">
+                      <RotateCcw className="size-5" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">Complete a 25m session to earn 100 XP</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-accent/5 border-accent/20 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" onClick={handleRefreshMotivation} disabled={isLoading}>
+                    <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
+                <CardHeader>
+                  <CardTitle className="text-accent flex items-center gap-2">
+                    <BrainCircuit className="size-5" />
+                    AI Study Coach
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {motivation ? (
+                    <div className="space-y-4 animate-in fade-in duration-500">
+                      <p className="text-lg italic font-medium leading-tight">"{motivation.motivation}"</p>
+                      <Separator className="bg-accent/20" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold uppercase text-accent tracking-wider flex items-center gap-1">
+                          <Sparkles className="size-3" /> Daily Tip
+                        </p>
+                        <p className="text-sm text-muted-foreground">{motivation.dailyTip}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 animate-pulse">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-4 bg-muted rounded w-1/2" />
-                    <Separator className="bg-muted" />
-                    <div className="h-12 bg-muted rounded w-full" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <div className="space-y-4 animate-pulse">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-4 bg-muted rounded w-1/2" />
+                      <Separator className="bg-muted" />
+                      <div className="h-12 bg-muted rounded w-full" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
       </SidebarInset>

@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   FileText,
   LineChart,
+  Search,
 } from "lucide-react"
 
 import {
@@ -24,6 +25,11 @@ const navItems = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Global Search",
+    url: "/search",
+    icon: Search,
   },
   {
     title: "AI Study Planner",

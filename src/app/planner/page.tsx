@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { generateStudySchedule, type GenerateStudyScheduleOutput } from "@/ai/flows/generate-study-schedule"
-import { Loader2, Calendar as CalendarIcon, Clock, Plus, Trash2, BookOpen, FileUp, Bell, NotebookPen, Info } from "lucide-react"
+import { Loader2, Calendar as CalendarIcon, Clock, Plus, Trash2, BookOpen, FileUp, Bell, NotebookPen, Info, Sparkles } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 interface WorkspaceNote {
@@ -67,6 +67,11 @@ export default function PlannerPage() {
     localStorage.setItem("studywise-reminders", JSON.stringify(reminders))
   }, [workspaces, reminders])
 
+  const awardXP = (amount: number) => {
+    const currentXP = parseInt(localStorage.getItem("studywise-xp") || "0")
+    localStorage.setItem("studywise-xp", (currentXP + amount).toString())
+  }
+
   const handleAddWorkspace = () => {
     if (!newSubject.trim()) return
     const newWs: Workspace = {
@@ -77,7 +82,8 @@ export default function PlannerPage() {
     setWorkspaces([...workspaces, newWs])
     setActiveWorkspaceId(newWs.id)
     setNewSubject("")
-    toast({ title: "Workspace Created", description: `Added ${newWs.name} to your study hub.` })
+    awardXP(50) // Reward for setting up a subject
+    toast({ title: "Workspace Created", description: `Added ${newWs.name} to your study hub. (+50 XP)` })
   }
 
   const handleRemoveWorkspace = (id: string) => {
@@ -103,7 +109,8 @@ export default function PlannerPage() {
     }))
     setNoteTitle("")
     setNoteContent("")
-    toast({ title: "Note Saved", description: "Stored in workspace." })
+    awardXP(20) // Reward for adding notes
+    toast({ title: "Note Saved", description: "Stored in workspace. (+20 XP)" })
   }
 
   const handleUploadTimetable = () => {
@@ -116,9 +123,10 @@ export default function PlannerPage() {
         { id: crypto.randomUUID(), title: "CS Semester Paper", date: "2024-12-22", type: 'exam' },
       ]
       setReminders([...reminders, ...newReminders])
+      awardXP(100) // Reward for planning
       toast({
         title: "Timetable Sync Complete",
-        description: "Extracted 3 exam dates and added them to your reminders.",
+        description: "Extracted 3 exam dates and added them to your reminders. (+100 XP)",
       })
     }, 2500)
   }
@@ -133,6 +141,7 @@ export default function PlannerPage() {
         dailyFreeTime: freeTime,
       })
       setSchedule(result)
+      awardXP(150) // Reward for high-level planning
     } catch (error) {
       console.error(error)
     } finally {

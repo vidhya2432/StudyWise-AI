@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { processNotes, type ProcessNotesOutput } from "@/ai/flows/process-notes-flow"
-import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType, RotateCcw, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType, RotateCcw, CheckCircle2, XCircle, Trophy } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +21,11 @@ export default function NotesPage() {
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({})
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({})
 
+  const awardXP = (amount: number) => {
+    const currentXP = parseInt(localStorage.getItem("studywise-xp") || "0")
+    localStorage.setItem("studywise-xp", (currentXP + amount).toString())
+  }
+
   const handleProcess = async () => {
     if (!notes.trim()) return
     setIsLoading(true)
@@ -29,6 +34,7 @@ export default function NotesPage() {
       setResult(data)
       setFlippedCards({})
       setQuizAnswers({})
+      awardXP(50) // Reward for generating analysis
     } catch (error) {
       console.error(error)
       toast({
@@ -54,15 +60,29 @@ export default function NotesPage() {
       Study Summary:
       Scientific research shows that testing yourself (active recall) is significantly more effective than re-reading notes.`
       setNotes(mockText)
+      awardXP(30)
       toast({
         title: "File Processed",
-        description: `Successfully extracted text from your ${type.toUpperCase()} document.`
+        description: `Successfully extracted text from your ${type.toUpperCase()} document. (+30 XP)`
       })
     }, 2000)
   }
 
   const toggleCard = (index: number) => {
     setFlippedCards(prev => ({ ...prev, [index]: !prev[index] }))
+    if (!flippedCards[index]) awardXP(5) // Bonus for studying cards
+  }
+
+  const handleQuizAnswer = (qIdx: number, opt: string, correctAns: string) => {
+    if (quizAnswers[qIdx]) return // Prevent double-answering
+    setQuizAnswers(prev => ({ ...prev, [qIdx]: opt }))
+    if (opt === correctAns) {
+      awardXP(25)
+      toast({
+        title: "Correct Answer!",
+        description: "You've earned 25 XP.",
+      })
+    }
   }
 
   return (
@@ -207,7 +227,8 @@ export default function NotesPage() {
                                     "justify-start h-auto py-3 px-4 whitespace-normal text-left transition-all",
                                     isSelected && isCorrect ? "bg-green-600 hover:bg-green-700" : ""
                                   )}
-                                  onClick={() => setQuizAnswers(prev => ({ ...prev, [i]: opt }))}
+                                  onClick={() => handleQuizAnswer(i, opt, q.correctAnswer)}
+                                  disabled={!!quizAnswers[i]}
                                 >
                                   {isSelected && (isCorrect ? <CheckCircle2 className="size-4 mr-2" /> : <XCircle className="size-4 mr-2" />)}
                                   {opt}
@@ -217,10 +238,11 @@ export default function NotesPage() {
                           </div>
                           {quizAnswers[i] && (
                             <div className={cn(
-                              "mt-4 p-3 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2",
+                              "mt-4 p-3 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 flex justify-between items-center",
                               quizAnswers[i] === q.correctAnswer ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
                             )}>
-                              {quizAnswers[i] === q.correctAnswer ? "Correct! Great job." : `Incorrect. The correct answer is: ${q.correctAnswer}`}
+                              <span>{quizAnswers[i] === q.correctAnswer ? "Correct! Great job." : `Incorrect. The correct answer is: ${q.correctAnswer}`}</span>
+                              {quizAnswers[i] === q.correctAnswer && <Badge variant="secondary" className="gap-1 bg-green-200"><Trophy className="size-3" /> +25 XP</Badge>}
                             </div>
                           )}
                         </CardContent>
