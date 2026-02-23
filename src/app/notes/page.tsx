@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -8,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { processNotes, type ProcessNotesOutput } from "@/ai/flows/process-notes-flow"
-import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType, RotateCcw, CheckCircle2, XCircle, Trophy } from "lucide-react"
+import { generateSpeech } from "@/ai/flows/text-to-speech"
+import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType, RotateCcw, CheckCircle2, XCircle, Trophy, Volume2, PlayCircle, PauseCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -20,6 +23,10 @@ export default function NotesPage() {
   const [result, setResult] = useState<ProcessNotesOutput | null>(null)
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({})
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({})
+  
+  // Audio state
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
   const awardXP = (amount: number) => {
     const currentXP = parseInt(localStorage.getItem("studywise-xp") || "0")
@@ -29,12 +36,13 @@ export default function NotesPage() {
   const handleProcess = async () => {
     if (!notes.trim()) return
     setIsLoading(true)
+    setAudioUrl(null)
     try {
       const data = await processNotes({ notesContent: notes })
       setResult(data)
       setFlippedCards({})
       setQuizAnswers({})
-      awardXP(50) // Reward for generating analysis
+      awardXP(50)
     } catch (error) {
       console.error(error)
       toast({
@@ -44,6 +52,29 @@ export default function NotesPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleListen = async () => {
+    if (!result?.summary) return
+    setIsGeneratingAudio(true)
+    try {
+      const { audioDataUri } = await generateSpeech({ text: result.summary })
+      setAudioUrl(audioDataUri)
+      awardXP(10)
+      toast({
+        title: "Audio Ready",
+        description: "Listening mode activated! (+10 XP)"
+      })
+    } catch (error) {
+      console.error(error)
+      toast({
+        variant: "destructive",
+        title: "Audio Generation Failed",
+        description: "Could not convert text to speech."
+      })
+    } finally {
+      setIsGeneratingAudio(false)
     }
   }
 
@@ -58,7 +89,7 @@ export default function NotesPage() {
       - Memory Palaces: Spatial mnemonic techniques for large data.
       
       Study Summary:
-      Scientific research shows that testing yourself (active recall) is significantly more effective than re-reading notes.`
+      Scientific research shows that testing yourself (active recall) is significantly more effective than re-reading notes. It strengthens neural pathways and improves long-term retention.`
       setNotes(mockText)
       awardXP(30)
       toast({
@@ -70,11 +101,11 @@ export default function NotesPage() {
 
   const toggleCard = (index: number) => {
     setFlippedCards(prev => ({ ...prev, [index]: !prev[index] }))
-    if (!flippedCards[index]) awardXP(5) // Bonus for studying cards
+    if (!flippedCards[index]) awardXP(5)
   }
 
   const handleQuizAnswer = (qIdx: number, opt: string, correctAns: string) => {
-    if (quizAnswers[qIdx]) return // Prevent double-answering
+    if (quizAnswers[qIdx]) return
     setQuizAnswers(prev => ({ ...prev, [qIdx]: opt }))
     if (opt === correctAns) {
       awardXP(25)
@@ -163,13 +194,40 @@ export default function NotesPage() {
                   <TabsTrigger value="quiz" className="gap-2 rounded-lg"><CheckSquare className="size-4" /> Smart Quiz</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="summary">
+                <TabsContent value="summary" className="space-y-6">
                   <Card className="shadow-sm border-primary/10">
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Key Summary</CardTitle>
+                      {!audioUrl ? (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          className="gap-2" 
+                          onClick={handleListen}
+                          disabled={isGeneratingAudio}
+                        >
+                          {isGeneratingAudio ? <Loader2 className="size-3.5 animate-spin" /> : <Volume2 className="size-3.5" />}
+                          Listen to Summary
+                        </Button>
+                      ) : (
+                        <Badge className="bg-green-500 hover:bg-green-600 gap-1"><Volume2 className="size-3" /> Audio Generated</Badge>
+                      )}
                     </CardHeader>
-                    <CardContent className="prose max-w-none text-lg leading-relaxed text-muted-foreground">
-                      {result.summary}
+                    <CardContent className="space-y-6">
+                      {audioUrl && (
+                        <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                          <p className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                            <Volume2 className="size-3" /> Audio Study Player
+                          </p>
+                          <audio controls className="w-full h-10">
+                            <source src={audioUrl} type="audio/wav" />
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      )}
+                      <div className="prose max-w-none text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                        {result.summary}
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
