@@ -5,9 +5,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, BarChart, XAxis, YAxis } from "recharts"
-import { Flame, Clock, Trophy, Target, BrainCircuit, Sparkles, RefreshCw, Play, Pause, RotateCcw } from "lucide-react"
+import { Flame, Clock, Trophy, Target, BrainCircuit, Sparkles, RefreshCw, Play, Pause, RotateCcw, GraduationCap } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { useState, useEffect, useRef } from "react"
 import { generateMotivation, type GenerateMotivationOutput } from "@/ai/flows/generate-motivation"
 
@@ -37,6 +38,10 @@ export default function Dashboard() {
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [isActive, setIsActive] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // XP Goal Logic
+  const dailyXPGoal = 1000
+  const xpProgress = Math.min((stats.xp / dailyXPGoal) * 100, 100)
 
   useEffect(() => {
     const savedWs = localStorage.getItem("studywise-workspaces")
@@ -117,6 +122,28 @@ export default function Dashboard() {
         </header>
         
         <main className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+          {/* Daily XP Goal Progress */}
+          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5 overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="space-y-2 text-center md:text-left">
+                  <h2 className="text-xl font-headline font-bold flex items-center gap-2">
+                    <GraduationCap className="size-6 text-primary" />
+                    Daily XP Goal
+                  </h2>
+                  <p className="text-sm text-muted-foreground">Keep studying to reach your daily target of {dailyXPGoal.toLocaleString()} XP!</p>
+                </div>
+                <div className="flex-1 w-full max-w-md space-y-2">
+                  <div className="flex justify-between text-sm font-bold">
+                    <span>{stats.xp.toLocaleString()} XP</span>
+                    <span className="text-primary">{Math.round(xpProgress)}%</span>
+                  </div>
+                  <Progress value={xpProgress} className="h-3 shadow-inner" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-primary text-primary-foreground shadow-lg">
               <CardHeader className="pb-2">
