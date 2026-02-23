@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -10,14 +9,17 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { processNotes, type ProcessNotesOutput } from "@/ai/flows/process-notes-flow"
-import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType } from "lucide-react"
+import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType, RotateCcw, CheckCircle2, XCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 export default function NotesPage() {
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
   const [result, setResult] = useState<ProcessNotesOutput | null>(null)
+  const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({})
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({})
 
   const handleProcess = async () => {
     if (!notes.trim()) return
@@ -25,6 +27,8 @@ export default function NotesPage() {
     try {
       const data = await processNotes({ notesContent: notes })
       setResult(data)
+      setFlippedCards({})
+      setQuizAnswers({})
     } catch (error) {
       console.error(error)
       toast({
@@ -39,24 +43,26 @@ export default function NotesPage() {
 
   const handleFileUpload = (type: 'pdf' | 'ppt' | 'doc') => {
     setIsParsing(true)
-    // Simulated text extraction from multi-format files
     setTimeout(() => {
       setIsParsing(false)
       const mockText = `This is a simulated extraction from a ${type.toUpperCase()} file.
       Key Concepts:
-      - Advanced Study Strategies
-      - Active Recall and Spaced Repetition
-      - Effective Note Taking using the Cornell Method
-      - Memory Palace techniques for complex data.
+      - Advanced Study Strategies: Active Recall & Spaced Repetition.
+      - Cornell Note Taking: Record, Questions, Recite, Reflect, Review.
+      - Memory Palaces: Spatial mnemonic techniques for large data.
       
-      Summary of contents:
-      The document explores cognitive science behind learning, emphasizing that testing yourself is more effective than passive reading.`
+      Study Summary:
+      Scientific research shows that testing yourself (active recall) is significantly more effective than re-reading notes.`
       setNotes(mockText)
       toast({
         title: "File Processed",
         description: `Successfully extracted text from your ${type.toUpperCase()} document.`
       })
-    }, 2500)
+    }, 2000)
+  }
+
+  const toggleCard = (index: number) => {
+    setFlippedCards(prev => ({ ...prev, [index]: !prev[index] }))
   }
 
   return (
@@ -73,52 +79,52 @@ export default function NotesPage() {
           {!result ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('pdf')}>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-all border-red-100 hover:border-red-300 shadow-sm" onClick={() => handleFileUpload('pdf')}>
                   <CardContent className="pt-6 flex flex-col items-center gap-2">
                     <FileType className="size-8 text-red-500" />
                     <span className="font-medium">Upload PDF</span>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('ppt')}>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-all border-orange-100 hover:border-orange-300 shadow-sm" onClick={() => handleFileUpload('ppt')}>
                   <CardContent className="pt-6 flex flex-col items-center gap-2">
                     <FileUp className="size-8 text-orange-500" />
                     <span className="font-medium">Upload PPT</span>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('doc')}>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-all border-blue-100 hover:border-blue-300 shadow-sm" onClick={() => handleFileUpload('doc')}>
                   <CardContent className="pt-6 flex flex-col items-center gap-2">
                     <FileCode2 className="size-8 text-blue-500" />
-                    <span className="font-medium">Upload Word/Doc</span>
+                    <span className="font-medium">Upload Word</span>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card className="border-dashed border-2">
+              <Card className="border-dashed border-2 shadow-none bg-muted/20">
                 <CardHeader>
                   <CardTitle>Transform Your Notes</CardTitle>
-                  <CardDescription>Upload a file above or paste your text below to generate summaries, flashcards, and quizzes.</CardDescription>
+                  <CardDescription>Paste text or upload files to generate summaries, interactive flashcards, and smart quizzes.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="relative">
                     <Textarea 
-                      className="min-h-[300px] text-base" 
+                      className="min-h-[300px] text-base shadow-sm" 
                       placeholder="Paste your notes here..." 
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
                     {isParsing && (
-                      <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center rounded-md animate-in fade-in">
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md animate-in fade-in backdrop-blur-sm">
                         <Loader2 className="size-8 animate-spin text-primary mb-2" />
                         <p className="font-medium">Parsing document content...</p>
                       </div>
                     )}
                   </div>
                   <Button 
-                    className="w-full h-12 text-lg" 
+                    className="w-full h-12 text-lg shadow-lg" 
                     onClick={handleProcess} 
                     disabled={isLoading || isParsing || !notes}
                   >
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating AI Insights...</> : <><Sparkles className="mr-2 size-5" /> Analyze Content</>}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : <><Sparkles className="mr-2 size-5" /> Generate Insights</>}
                   </Button>
                 </CardContent>
               </Card>
@@ -127,40 +133,53 @@ export default function NotesPage() {
             <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-headline font-bold">Analysis Results</h2>
-                <Button variant="outline" onClick={() => setResult(null)}>Analyze New Notes</Button>
+                <Button variant="outline" onClick={() => setResult(null)}>Start New Analysis</Button>
               </div>
 
               <Tabs defaultValue="summary" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-12 mb-8">
-                  <TabsTrigger value="summary" className="gap-2"><FileText className="size-4" /> Summary</TabsTrigger>
-                  <TabsTrigger value="flashcards" className="gap-2"><LayoutGrid className="size-4" /> Flashcards</TabsTrigger>
-                  <TabsTrigger value="quiz" className="gap-2"><CheckSquare className="size-4" /> Smart Quiz</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 h-12 mb-8 p-1 bg-muted/50 rounded-xl">
+                  <TabsTrigger value="summary" className="gap-2 rounded-lg"><FileText className="size-4" /> Summary</TabsTrigger>
+                  <TabsTrigger value="flashcards" className="gap-2 rounded-lg"><LayoutGrid className="size-4" /> Flashcards</TabsTrigger>
+                  <TabsTrigger value="quiz" className="gap-2 rounded-lg"><CheckSquare className="size-4" /> Smart Quiz</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="summary">
-                  <Card>
+                  <Card className="shadow-sm border-primary/10">
                     <CardHeader>
-                      <CardTitle>AI Summary</CardTitle>
+                      <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Key Summary</CardTitle>
                     </CardHeader>
-                    <CardContent className="prose max-w-none text-lg">
+                    <CardContent className="prose max-w-none text-lg leading-relaxed text-muted-foreground">
                       {result.summary}
                     </CardContent>
                   </Card>
                 </TabsContent>
 
                 <TabsContent value="flashcards">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {result.flashcards.map((card, i) => (
-                      <Card key={i} className="cursor-pointer hover:border-primary transition-all group overflow-hidden">
-                        <CardHeader className="bg-primary/5 pb-2">
-                          <CardTitle className="text-sm text-primary uppercase font-bold">Front</CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-6">
-                          <p className="font-semibold text-lg">{card.front}</p>
-                          <Separator className="my-4 group-hover:bg-primary/20" />
-                          <p className="text-muted-foreground italic">"{card.back}"</p>
-                        </CardContent>
-                      </Card>
+                      <div key={i} className="group h-[200px] [perspective:1000px]">
+                        <div 
+                          className={cn(
+                            "relative h-full w-full rounded-xl transition-all duration-500 [transform-style:preserve-3d] cursor-pointer shadow-sm border",
+                            flippedCards[i] ? "[transform:rotateY(180deg)]" : ""
+                          )}
+                          onClick={() => toggleCard(i)}
+                        >
+                          {/* Front */}
+                          <div className="absolute inset-0 flex flex-col p-6 [backface-visibility:hidden]">
+                            <p className="text-xs font-bold text-primary uppercase mb-2">Front</p>
+                            <p className="text-xl font-bold flex-1 flex items-center">{card.front}</p>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-4">
+                              <RotateCcw className="size-3" /> Click to flip
+                            </div>
+                          </div>
+                          {/* Back */}
+                          <div className="absolute inset-0 h-full w-full rounded-xl bg-primary text-primary-foreground p-6 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                            <p className="text-xs font-bold uppercase mb-2 opacity-70">Back</p>
+                            <p className="text-lg leading-relaxed">{card.back}</p>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </TabsContent>
@@ -168,18 +187,42 @@ export default function NotesPage() {
                 <TabsContent value="quiz">
                   <div className="space-y-6">
                     {result.quizQuestions.map((q, i) => (
-                      <Card key={i}>
+                      <Card key={i} className="shadow-sm">
                         <CardHeader>
-                          <CardTitle className="text-lg">Q{i + 1}: {q.question}</CardTitle>
+                          <CardTitle className="text-lg flex gap-3">
+                            <span className="flex items-center justify-center size-7 rounded-full bg-primary/10 text-primary text-sm shrink-0">Q{i+1}</span>
+                            {q.question}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {q.options.map((opt, j) => (
-                              <Button key={j} variant="outline" className="justify-start h-auto py-3 px-4 whitespace-normal text-left">
-                                {opt}
-                              </Button>
-                            ))}
+                            {q.options.map((opt, j) => {
+                              const isSelected = quizAnswers[i] === opt
+                              const isCorrect = opt === q.correctAnswer
+                              return (
+                                <Button 
+                                  key={j} 
+                                  variant={isSelected ? (isCorrect ? "default" : "destructive") : "outline"} 
+                                  className={cn(
+                                    "justify-start h-auto py-3 px-4 whitespace-normal text-left transition-all",
+                                    isSelected && isCorrect ? "bg-green-600 hover:bg-green-700" : ""
+                                  )}
+                                  onClick={() => setQuizAnswers(prev => ({ ...prev, [i]: opt }))}
+                                >
+                                  {isSelected && (isCorrect ? <CheckCircle2 className="size-4 mr-2" /> : <XCircle className="size-4 mr-2" />)}
+                                  {opt}
+                                </Button>
+                              )
+                            })}
                           </div>
+                          {quizAnswers[i] && (
+                            <div className={cn(
+                              "mt-4 p-3 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2",
+                              quizAnswers[i] === q.correctAnswer ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                            )}>
+                              {quizAnswers[i] === q.correctAnswer ? "Correct! Great job." : `Incorrect. The correct answer is: ${q.correctAnswer}`}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
