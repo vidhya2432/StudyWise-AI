@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -9,11 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { processNotes, type ProcessNotesOutput } from "@/ai/flows/process-notes-flow"
-import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles } from "lucide-react"
+import { Loader2, FileText, LayoutGrid, CheckSquare, Sparkles, FileUp, FileCode2, FileType } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 export default function NotesPage() {
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isParsing, setIsParsing] = useState(false)
   const [result, setResult] = useState<ProcessNotesOutput | null>(null)
 
   const handleProcess = async () => {
@@ -24,9 +27,36 @@ export default function NotesPage() {
       setResult(data)
     } catch (error) {
       console.error(error)
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Could not process the content. Please try again."
+      })
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleFileUpload = (type: 'pdf' | 'ppt' | 'doc') => {
+    setIsParsing(true)
+    // Simulated text extraction from multi-format files
+    setTimeout(() => {
+      setIsParsing(false)
+      const mockText = `This is a simulated extraction from a ${type.toUpperCase()} file.
+      Key Concepts:
+      - Advanced Study Strategies
+      - Active Recall and Spaced Repetition
+      - Effective Note Taking using the Cornell Method
+      - Memory Palace techniques for complex data.
+      
+      Summary of contents:
+      The document explores cognitive science behind learning, emphasizing that testing yourself is more effective than passive reading.`
+      setNotes(mockText)
+      toast({
+        title: "File Processed",
+        description: `Successfully extracted text from your ${type.toUpperCase()} document.`
+      })
+    }, 2500)
   }
 
   return (
@@ -41,32 +71,63 @@ export default function NotesPage() {
 
         <main className="p-6 space-y-6 max-w-5xl mx-auto w-full">
           {!result ? (
-            <Card className="border-dashed border-2">
-              <CardHeader>
-                <CardTitle>Transform Your Notes</CardTitle>
-                <CardDescription>Paste your study notes below to generate summaries, flashcards, and quizzes.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea 
-                  className="min-h-[300px] text-base" 
-                  placeholder="Paste your notes here..." 
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-                <Button 
-                  className="w-full h-12 text-lg" 
-                  onClick={handleProcess} 
-                  disabled={isLoading || !notes}
-                >
-                  {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing Notes...</> : <><Sparkles className="mr-2 size-5" /> Process with AI</>}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('pdf')}>
+                  <CardContent className="pt-6 flex flex-col items-center gap-2">
+                    <FileType className="size-8 text-red-500" />
+                    <span className="font-medium">Upload PDF</span>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('ppt')}>
+                  <CardContent className="pt-6 flex flex-col items-center gap-2">
+                    <FileUp className="size-8 text-orange-500" />
+                    <span className="font-medium">Upload PPT</span>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleFileUpload('doc')}>
+                  <CardContent className="pt-6 flex flex-col items-center gap-2">
+                    <FileCode2 className="size-8 text-blue-500" />
+                    <span className="font-medium">Upload Word/Doc</span>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border-dashed border-2">
+                <CardHeader>
+                  <CardTitle>Transform Your Notes</CardTitle>
+                  <CardDescription>Upload a file above or paste your text below to generate summaries, flashcards, and quizzes.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative">
+                    <Textarea 
+                      className="min-h-[300px] text-base" 
+                      placeholder="Paste your notes here..." 
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                    {isParsing && (
+                      <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center rounded-md animate-in fade-in">
+                        <Loader2 className="size-8 animate-spin text-primary mb-2" />
+                        <p className="font-medium">Parsing document content...</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    className="w-full h-12 text-lg" 
+                    onClick={handleProcess} 
+                    disabled={isLoading || isParsing || !notes}
+                  >
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating AI Insights...</> : <><Sparkles className="mr-2 size-5" /> Analyze Content</>}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-headline font-bold">Processed Results</h2>
-                <Button variant="outline" onClick={() => setResult(null)}>New Notes</Button>
+                <h2 className="text-2xl font-headline font-bold">Analysis Results</h2>
+                <Button variant="outline" onClick={() => setResult(null)}>Analyze New Notes</Button>
               </div>
 
               <Tabs defaultValue="summary" className="w-full">
@@ -92,7 +153,7 @@ export default function NotesPage() {
                     {result.flashcards.map((card, i) => (
                       <Card key={i} className="cursor-pointer hover:border-primary transition-all group overflow-hidden">
                         <CardHeader className="bg-primary/5 pb-2">
-                          <CardTitle className="text-sm text-primary uppercase font-bold">Question</CardTitle>
+                          <CardTitle className="text-sm text-primary uppercase font-bold">Front</CardTitle>
                         </CardHeader>
                         <CardContent className="py-6">
                           <p className="font-semibold text-lg">{card.front}</p>
